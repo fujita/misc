@@ -75,25 +75,10 @@ func lookupIntKey(b *benchmark) {
 	}
 }
 
-func bytesToTrieKey(b []byte, max uint8) []byte {
-	ans := make([]byte, 0)
-	if max == 0 {
-		return ans
-	}
-	q := max / 8
-	r := max % 8
-	s := 256 - (1 << (8 - r))
-	ans = append(ans, b[:q]...)
-	if r != 0 {
-		ans = append(ans, b[q]&byte(s))
-	}
-	return append(ans, byte(max))
-}
-
 func radixKey(nlri bgp.AddrPrefixInterface) []byte {
 	switch T := nlri.(type) {
 	case *bgp.IPAddrPrefix:
-		return bytesToTrieKey(T.Prefix, T.Length)
+		return append(T.Prefix, byte(T.Length))
 	}
 	return []byte{}
 }
