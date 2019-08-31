@@ -145,10 +145,14 @@ func lookupMutableRadix(b *benchmark) {
 	}
 }
 
-var name = flag.String("f", "hello", "mrt filename")
+var (
+	name  = flag.String("f", "hello", "mrt filename")
+	count = flag.Int("c", 1, "count")
+)
 
 type benchmark struct {
 	n        int
+	count    int
 	start    time.Time
 	duration time.Duration
 }
@@ -162,14 +166,17 @@ func (b *benchmark) stop() {
 }
 
 func (b *benchmark) run(name string, f func(b *benchmark)) {
-	b.reset()
-	f(b)
-	b.stop()
-	fmt.Println(name, " ", float64(b.duration.Nanoseconds())/float64(b.n), " ns/op")
+	d := float64(0)
+	for i := 0; i < b.count; i++ {
+		b.reset()
+		f(b)
+		b.stop()
+		d += float64(b.duration.Nanoseconds()) / float64(b.n)
+	}
+	fmt.Printf("%-30s%10.5f ns/op\n", name, d/float64(b.count))
 }
 
 func main() {
-	os.Exit(0)
 	flag.Parse()
 
 	fp, err := os.Open(*name)
@@ -208,19 +215,23 @@ func main() {
 			prefixes = append(prefixes, rib.Prefix)
 		}
 	}
-	fmt.Println("prefixes = ", len(prefixes))
 	b := benchmark{
-		n: len(prefixes),
+		n:     len(prefixes),
+		count: *count,
 	}
 
-	b.run("stringMap", insertStringKey)
-	b.run("intMap", insertIntKey)
-	b.run("mutable radix", insertMutableRadix)
-	b.run("immutable radix", insertRadix)
-	b.run("cribit", insertCritbit)
-	b.run("intMap lookup", lookupIntKey)
-	b.run("stringMap lookup", lookupStringKey)
+	fmt.Println("INSERT")
+	b.run("string key map insert", insertStringKey)
+	b.run("int key map insert", insertIntKey)
+	b.run("mutable radix insert", insertMutableRadix)
+	b.run("immutable radix insert", insertRadix)
+	b.run("cribit insert", insertCritbit)
+	fmt.Println("LOOKUP")
+	b.run("string key map lookup", lookupStringKey)
+	b.run("int key map lookup", lookupIntKey)
 	b.run("mutable radix lookup", lookupMutableRadix)
 	b.run("immutable radix lookup", lookupRadix)
 	b.run("cribit lookup", lookupCritbit)
+
+	fmt.Println("\nthe number of prefixes = ", len(prefixes))
 }
