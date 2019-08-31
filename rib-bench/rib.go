@@ -88,10 +88,10 @@ func radixKey(nlri bgp.AddrPrefixInterface) []byte {
 
 func insertRadix(b *benchmark) {
 	r := iradix.New()
-	ir = r
 	for i, v := range prefixes {
 		r, _, _ = r.Insert(radixKey(v), prefixes[i])
 	}
+	ir = r
 }
 
 func lookupRadix(b *benchmark) {
@@ -226,6 +226,20 @@ func main() {
 	b.run("mutable radix insert", insertMutableRadix)
 	b.run("immutable radix insert", insertRadix)
 	b.run("cribit insert", insertCritbit)
+
+	f := func(n string, l int) {
+		if l != len(prefixes) {
+			fmt.Println("size of ", n, " is wrong")
+			os.Exit(1)
+		}
+	}
+
+	f("string key map", len(stringMap))
+	f("int key map", len(intMap))
+	f("mutable", ir.Len())
+	f("immutable", mr.Len())
+	f("cri", cri.Size())
+
 	fmt.Println("LOOKUP")
 	b.run("string key map lookup", lookupStringKey)
 	b.run("int key map lookup", lookupIntKey)

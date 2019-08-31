@@ -7,4 +7,5 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.1.0
 	github.com/k-sone/critbitgo v1.2.0
 	github.com/osrg/gobgp v2.0.0+incompatible
+	github.com/stretchr/testify v1.4.0 // indirect
 )
