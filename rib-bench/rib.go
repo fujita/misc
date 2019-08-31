@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/armon/go-radix"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/k-sone/critbitgo"
 	"github.com/osrg/gobgp/pkg/packet/bgp"
@@ -19,7 +21,8 @@ var (
 	prefixes  []bgp.AddrPrefixInterface
 	intMap    map[uint64]bgp.AddrPrefixInterface
 	stringMap map[string]bgp.AddrPrefixInterface
-	ir        *iradix.Tree
+	ir        *iradix.Tree // immutable
+	mr        *radix.Tree  // mutable
 	cri       *critbitgo.Trie
 )
 
@@ -113,6 +116,35 @@ func lookupCritbit(b *benchmark) {
 	}
 }
 
+func radixStringkey(nlri bgp.AddrPrefixInterface) string {
+	switch T := nlri.(type) {
+	case *bgp.IPAddrPrefix:
+		var buffer bytes.Buffer
+		b := T.Prefix
+		max := T.Length
+		for i := 0; i < len(b) && i < int(max); i++ {
+			fmt.Fprintf(&buffer, "%08b", b[i])
+		}
+		return buffer.String()[:max]
+	}
+	return ""
+}
+
+func insertMutableRadix(b *benchmark) {
+	r := radix.New()
+	mr = r
+	for i, v := range prefixes {
+		r.Insert(radixStringkey(v), prefixes[i])
+	}
+}
+
+func lookupMutableRadix(b *benchmark) {
+	r := mr
+	for i := 0; i < b.n; i++ {
+		_, _ = r.Get(radixStringkey(prefixes[i]))
+	}
+}
+
 var name = flag.String("f", "hello", "mrt filename")
 
 type benchmark struct {
@@ -137,6 +169,7 @@ func (b *benchmark) run(name string, f func(b *benchmark)) {
 }
 
 func main() {
+	os.Exit(0)
 	flag.Parse()
 
 	fp, err := os.Open(*name)
@@ -182,10 +215,12 @@ func main() {
 
 	b.run("stringMap", insertStringKey)
 	b.run("intMap", insertIntKey)
-	b.run("iradix", insertRadix)
+	b.run("mutable radix", insertMutableRadix)
+	b.run("immutable radix", insertRadix)
 	b.run("cribit", insertCritbit)
 	b.run("intMap lookup", lookupIntKey)
 	b.run("stringMap lookup", lookupStringKey)
-	b.run("radix lookup", lookupRadix)
+	b.run("mutable radix lookup", lookupMutableRadix)
+	b.run("immutable radix lookup", lookupRadix)
 	b.run("cribit lookup", lookupCritbit)
 }
