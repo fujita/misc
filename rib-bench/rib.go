@@ -51,8 +51,16 @@ func insertStringKey(b *benchmark) {
 }
 
 func lookupStringKey(b *benchmark) {
+	m := stringMap
 	for i := 0; i < b.n; i++ {
-		_ = stringMap[stringKey(prefixes[i])]
+		_ = m[stringKey(prefixes[i])]
+	}
+}
+
+func walkStringKey(b *benchmark) {
+	m := stringMap
+	for _, v := range m {
+		_ = v
 	}
 }
 
@@ -73,8 +81,16 @@ func insertIntKey(b *benchmark) {
 }
 
 func lookupIntKey(b *benchmark) {
+	m := intMap
 	for i := 0; i < b.n; i++ {
-		_ = intMap[intKey(prefixes[i])]
+		_ = m[intKey(prefixes[i])]
+	}
+}
+
+func walkIntKey(b *benchmark) {
+	m := intMap
+	for _, v := range m {
+		_ = v
 	}
 }
 
@@ -101,6 +117,13 @@ func lookupRadix(b *benchmark) {
 	}
 }
 
+func walkRadix(b *benchmark) {
+	r := ir
+	r.Root().Walk(func(k []byte, v interface{}) bool {
+		return false
+	})
+}
+
 func insertCritbit(b *benchmark) {
 	t := critbitgo.NewTrie()
 	cri = t
@@ -114,6 +137,13 @@ func lookupCritbit(b *benchmark) {
 	for i := 0; i < b.n; i++ {
 		_, _ = t.Get(radixKey(prefixes[i]))
 	}
+}
+
+func walkCritbit(b *benchmark) {
+	t := cri
+	t.Walk(nil, func(k []byte, v interface{}) bool {
+		return true
+	})
 }
 
 func radixStringkey(nlri bgp.AddrPrefixInterface) string {
@@ -143,6 +173,13 @@ func lookupMutableRadix(b *benchmark) {
 	for i := 0; i < b.n; i++ {
 		_, _ = r.Get(radixStringkey(prefixes[i]))
 	}
+}
+
+func walkMutableRadix(b *benchmark) {
+	r := mr
+	r.Walk(func(s string, v interface{}) bool {
+		return false
+	})
 }
 
 var (
@@ -225,7 +262,7 @@ func main() {
 	b.run("int key map insert", insertIntKey)
 	b.run("mutable radix insert", insertMutableRadix)
 	b.run("immutable radix insert", insertRadix)
-	b.run("cribit insert", insertCritbit)
+	b.run("critbit insert", insertCritbit)
 
 	f := func(n string, l int) {
 		if l != len(prefixes) {
@@ -245,7 +282,13 @@ func main() {
 	b.run("int key map lookup", lookupIntKey)
 	b.run("mutable radix lookup", lookupMutableRadix)
 	b.run("immutable radix lookup", lookupRadix)
-	b.run("cribit lookup", lookupCritbit)
+	b.run("critbit lookup", lookupCritbit)
+	fmt.Println("WALK")
+	b.run("string key map walk", walkStringKey)
+	b.run("int key map walk", walkIntKey)
+	b.run("mutable radix walk", walkMutableRadix)
+	b.run("immutable radix walk", walkRadix)
+	b.run("critbit walk", walkCritbit)
 
 	fmt.Println("\nthe number of prefixes = ", len(prefixes))
 }
