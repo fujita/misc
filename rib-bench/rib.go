@@ -50,6 +50,13 @@ func insertStringKey(b *benchmark) {
 	stringMap = m
 }
 
+func deleteStringKey(b *benchmark) {
+	m := stringMap
+	for i := 0; i < b.n; i++ {
+		delete(m, stringKey(prefixes[i]))
+	}
+}
+
 func lookupStringKey(b *benchmark) {
 	m := stringMap
 	for i := 0; i < b.n; i++ {
@@ -78,6 +85,13 @@ func insertIntKey(b *benchmark) {
 		m[intKey(v)] = prefixes[i]
 	}
 	intMap = m
+}
+
+func deleteIntKey(b *benchmark) {
+	m := intMap
+	for i := 0; i < b.n; i++ {
+		delete(m, intKey(prefixes[i]))
+	}
 }
 
 func lookupIntKey(b *benchmark) {
@@ -110,6 +124,12 @@ func insertRadix(b *benchmark) {
 	ir = r
 }
 
+func deleteRadix(b *benchmark) {
+	for i := 0; i < b.n; i++ {
+		ir,_,_ = ir.Delete(radixKey(prefixes[i]))
+	}
+}
+
 func lookupRadix(b *benchmark) {
 	r := ir
 	for i := 0; i < b.n; i++ {
@@ -129,6 +149,13 @@ func insertCritbit(b *benchmark) {
 	cri = t
 	for i, v := range prefixes {
 		t.Insert(radixKey(v), prefixes[i])
+	}
+}
+
+func deleteCritbit(b *benchmark) {
+	t := cri
+	for i := 0; i < b.n; i++ {
+		t.Delete(radixKey(prefixes[i]))
 	}
 }
 
@@ -165,6 +192,13 @@ func insertMutableRadix(b *benchmark) {
 	mr = r
 	for i, v := range prefixes {
 		r.Insert(radixStringkey(v), prefixes[i])
+	}
+}
+
+func deleteMutableRadix(b *benchmark) {
+	r := mr
+	for i := 0; i < b.n; i++ {
+		r.Delete(radixStringkey(prefixes[i]))
 	}
 }
 
@@ -264,18 +298,19 @@ func main() {
 	b.run("immutable radix insert", insertRadix)
 	b.run("critbit insert", insertCritbit)
 
-	f := func(n string, l int) {
-		if l != len(prefixes) {
-			fmt.Println("size of ", n, " is wrong")
+	f := func(n string, v,expected int) {
+		if v != expected {
+			fmt.Println("size of", n, "is", v, "but", expected, "is expected")
 			os.Exit(1)
 		}
 	}
 
-	f("string key map", len(stringMap))
-	f("int key map", len(intMap))
-	f("mutable", ir.Len())
-	f("immutable", mr.Len())
-	f("cri", cri.Size())
+	prefixLen := len(prefixes)
+	f("string key map", len(stringMap), prefixLen)
+	f("int key map", len(intMap), prefixLen)
+	f("mutable", ir.Len(), prefixLen)
+	f("immutable", mr.Len(), prefixLen)
+	f("cri", cri.Size(), prefixLen)
 
 	fmt.Println("LOOKUP")
 	b.run("string key map lookup", lookupStringKey)
@@ -283,6 +318,7 @@ func main() {
 	b.run("mutable radix lookup", lookupMutableRadix)
 	b.run("immutable radix lookup", lookupRadix)
 	b.run("critbit lookup", lookupCritbit)
+
 	fmt.Println("WALK")
 	b.run("string key map walk", walkStringKey)
 	b.run("int key map walk", walkIntKey)
@@ -290,5 +326,18 @@ func main() {
 	b.run("immutable radix walk", walkRadix)
 	b.run("critbit walk", walkCritbit)
 
-	fmt.Println("\nthe number of prefixes = ", len(prefixes))
+	fmt.Println("DELETE")
+	b.run("string key map delete", deleteStringKey)
+	b.run("int key map delete", deleteIntKey)
+	b.run("mutable radix delete", deleteMutableRadix)
+	b.run("immutable radix delete", deleteRadix)
+	b.run("critbit walk", deleteCritbit)
+
+	f("string key map", len(stringMap), 0)
+	f("int key map", len(intMap), 0)
+	f("mutable", mr.Len(), 0)
+	f("immutable", ir.Len(), 0)
+	f("cri", cri.Size(), 0)
+
+	fmt.Println("\nthe number of prefixes = ", prefixLen)
 }
