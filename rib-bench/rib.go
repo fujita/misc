@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
+	"runtime/pprof"
 	"time"
 	"unsafe"
 
@@ -126,7 +128,7 @@ func insertRadix(b *benchmark) {
 
 func deleteRadix(b *benchmark) {
 	for i := 0; i < b.n; i++ {
-		ir,_,_ = ir.Delete(radixKey(prefixes[i]))
+		ir, _, _ = ir.Delete(radixKey(prefixes[i]))
 	}
 }
 
@@ -217,8 +219,9 @@ func walkMutableRadix(b *benchmark) {
 }
 
 var (
-	name  = flag.String("f", "hello", "mrt filename")
-	count = flag.Int("c", 1, "count")
+	name    = flag.String("f", "hello", "mrt filename")
+	count   = flag.Int("c", 1, "count")
+	profile = flag.String("p", "", "memory profile")
 )
 
 type benchmark struct {
@@ -298,7 +301,7 @@ func main() {
 	b.run("immutable radix insert", insertRadix)
 	b.run("critbit insert", insertCritbit)
 
-	f := func(n string, v,expected int) {
+	f := func(n string, v, expected int) {
 		if v != expected {
 			fmt.Println("size of", n, "is", v, "but", expected, "is expected")
 			os.Exit(1)
@@ -311,6 +314,19 @@ func main() {
 	f("mutable", ir.Len(), prefixLen)
 	f("immutable", mr.Len(), prefixLen)
 	f("cri", cri.Size(), prefixLen)
+
+	if *profile != "" {
+		f, err := os.Create(*profile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		runtime.GC()
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
 
 	fmt.Println("LOOKUP")
 	b.run("string key map lookup", lookupStringKey)
