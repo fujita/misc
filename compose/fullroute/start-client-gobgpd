@@ -1,0 +1,19 @@
+#!/bin/bash
+
+IP=$(ip addr show eth0 | sed -nEe 's/^[ \t]*inet[ \t]*([0-9.]+)\/.*$/\1/p')
+REMOTE=$(echo ${IP}|sed -nEe 's/(.[0-9]*)$/.2/p')
+
+cat <<EOF > /etc/gobgpd.conf
+[global.config]
+as = 65002
+router-id = "${IP}"
+[[neighbors]]
+  [neighbors.config]
+    peer-as = 65001
+    neighbor-address = "${REMOTE}"
+EOF
+
+/go/bin/gobgpd -f /etc/gobgpd.conf&
+sleep 5
+/go/bin/gobgp mrt inject global /var/opt/mrt/rib.20190830.0800
+/go/bin/gobgp monitor neighbor

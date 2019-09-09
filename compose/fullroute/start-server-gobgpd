@@ -1,0 +1,20 @@
+#!/bin/bash
+
+IP=$(ip addr show eth0 | sed -nEe 's/^[ \t]*inet[ \t]*([0-9.]+)\/.*$/\1/p')
+REMOTE=$(echo ${IP}|sed -nEe 's/(.[0-9]*)$/.0\/24/p')
+
+cat <<EOF > /etc/gobgpd.conf
+[global.config]
+as = 65001
+router-id = "${IP}"
+[[peer-groups]]
+  [peer-groups.config]
+    peer-group-name = "sample-group"
+    peer-as = 65002
+[[dynamic-neighbors]]
+  [dynamic-neighbors.config]
+    prefix = "${REMOTE}"
+    peer-group = "sample-group"
+EOF
+
+/go/bin/gobgpd -f /etc/gobgpd.conf

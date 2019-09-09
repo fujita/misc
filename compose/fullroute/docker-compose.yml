@@ -1,0 +1,16 @@
+version: '2'
+
+services:
+  server:
+    build:
+      context: ./
+      dockerfile: Dockerfile-server
+
+  client:
+    build:
+      context: ./
+      dockerfile: Dockerfile-client
+    depends_on:
+      - server
+    volumes:
+      - ./mrt:/var/opt/mrt

@@ -1,0 +1,16 @@
+FROM golang
+
+ENV HOME /root
+WORKDIR /root
+
+RUN go get github.com/osrg/gobgp/cmd/gobgpd
+RUN go get github.com/osrg/gobgp/cmd/gobgp
+
+RUN apt-get update
+RUN apt-get install -qy --no-install-recommends supervisor
+
+ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+ADD start-server-gobgpd /usr/bin/start-gobgpd
+
+ENTRYPOINT ["/usr/bin/supervisord"]
+
