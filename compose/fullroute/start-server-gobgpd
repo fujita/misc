@@ -7,6 +7,8 @@ cat <<EOF > /etc/gobgpd.conf
 [global.config]
 as = 65001
 router-id = "${IP}"
+[global.apply-policy.config]
+default-export-policy = "reject-route"
 [[peer-groups]]
   [peer-groups.config]
     peer-group-name = "sample-group"
