@@ -10,7 +10,7 @@ router-id = "${IP}"
 [[peer-groups]]
   [peer-groups.config]
     peer-group-name = "sample-group"
-    peer-as = 65002
+    peer-as = 0
 [[dynamic-neighbors]]
   [dynamic-neighbors.config]
     prefix = "${REMOTE}"

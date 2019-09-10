@@ -2,10 +2,11 @@
 
 IP=$(ip addr show eth0 | sed -nEe 's/^[ \t]*inet[ \t]*([0-9.]+)\/.*$/\1/p')
 REMOTE=$(echo ${IP}|sed -nEe 's/(.[0-9]*)$/.2/p')
+AS=$(echo ${IP}|awk -F '.' '{print $4}')
 
 cat <<EOF > /etc/gobgpd.conf
 [global.config]
-as = 65002
+as = "${AS}"
 router-id = "${IP}"
 [[neighbors]]
   [neighbors.config]
