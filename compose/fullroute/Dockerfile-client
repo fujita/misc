@@ -1,15 +1,13 @@
-FROM golang
+FROM alpine
 
 ENV HOME /root
 WORKDIR /root
 
-RUN go get github.com/osrg/gobgp/cmd/gobgpd
-RUN go get github.com/osrg/gobgp/cmd/gobgp
+RUN apk add --update supervisor && rm  -rf /tmp/* /var/cache/apk/*
 
-RUN apt-get update
-RUN apt-get install -qy --no-install-recommends supervisor
+ADD binary/gobgp /usr/bin/gobgp
+ADD binary/gobgpd /usr/bin/gobgpd
 
-ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+ADD supervisord.conf /etc/supervisord.conf
 ADD start-client-gobgpd /usr/bin/start-gobgpd
 ENTRYPOINT ["/usr/bin/supervisord"]
-
