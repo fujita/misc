@@ -5,6 +5,8 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile-server
+    volumes:
+      - ./mrt:/var/opt/mrt
 
   client:
     build:
