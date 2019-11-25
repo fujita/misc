@@ -12,6 +12,9 @@ router-id = "${IP}"
   [neighbors.config]
     peer-as = 65001
     neighbor-address = "${REMOTE}"
+  [neighbors.timers.config]
+    connect-retry = 1
+    idle-hold-time-after-reset = 5
 EOF
 
 /usr/bin/gobgpd -f /etc/gobgpd.conf&
