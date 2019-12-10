@@ -1,0 +1,12 @@
+FROM tomo/rustybgp
+
+ENV HOME /root
+WORKDIR /root
+
+RUN apk add --no-cache --update supervisor
+
+ADD supervisord.conf /etc/
+ADD start-server-rusty /usr/bin/start-gobgpd
+
+ENTRYPOINT ["/usr/bin/supervisord"]
+
