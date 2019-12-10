@@ -19,4 +19,5 @@ default-export-policy = "reject-route"
     peer-group = "sample-group"
 EOF
 
+sleep 5
 /usr/bin/gobgpd -f /etc/gobgpd.conf
