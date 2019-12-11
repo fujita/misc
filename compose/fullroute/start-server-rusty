@@ -20,4 +20,5 @@ default-export-policy = "reject-route"
 EOF
 
 sleep 5
+/usr/bin/watcher -p 8 -r 771684 > /var/log/watcher.log&
 /usr/sbin/rustybgpd --perf

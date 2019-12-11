@@ -8,5 +8,7 @@ RUN apk add --no-cache --update supervisor
 ADD supervisord.conf /etc/
 ADD start-server-rusty /usr/bin/start-gobgpd
 
+COPY watcher/watcher /usr/bin
+
 ENTRYPOINT ["/usr/bin/supervisord"]
 

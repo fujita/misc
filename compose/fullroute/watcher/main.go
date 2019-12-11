@@ -20,7 +20,7 @@ var (
 func main() {
 	flag.Parse()
 
-	nr := int64(*peerOpt) * *routeOpt
+	nr := uint64(*peerOpt) * uint64(*routeOpt)
 	fmt.Println("wait for ", *peerOpt, " peers; each has ", *routeOpt, " routes.")
 
 	grpcOpts := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
@@ -63,9 +63,9 @@ func main() {
 			}
 		}
 		if init {
-			fmt.Println(time.Now(), " ", peers, " peers ", accepted, " accepted")
+			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " ", peers, " peers ", accepted, " accepted")
 		}
-		if uint64(peers)*accepted == uint64(nr) {
+		if accepted == nr {
 			break
 		}
 		time.Sleep(time.Second)
