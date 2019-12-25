@@ -34,6 +34,7 @@ func main() {
 	client := api.NewGobgpApiClient(conn)
 
 	init := false
+	neighbors := []string{}
 	var start time.Time
 	for {
 		stream, err := client.ListPeer(context.Background(), &api.ListPeerRequest{})
@@ -44,6 +45,7 @@ func main() {
 
 		peers := 0
 		accepted := uint64(0)
+		neighbors = []string{}
 		for {
 			r, err := stream.Recv()
 			if err == io.EOF {
@@ -61,6 +63,7 @@ func main() {
 			for _, afisafi := range r.Peer.GetAfiSafis() {
 				accepted += afisafi.State.Accepted
 			}
+			neighbors = append(neighbors, r.Peer.GetConf().GetNeighborAddress())
 		}
 		if init {
 			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " ", peers, " peers ", accepted, " accepted")
@@ -70,5 +73,37 @@ func main() {
 		}
 		time.Sleep(time.Second)
 	}
+	fmt.Println("receiving finished: ", time.Since(start).Seconds(), " seconds")
+
+	clients := []api.GobgpApiClient{}
+	for _, n := range neighbors {
+		conn, err = grpc.DialContext(context.Background(), fmt.Sprintf("%s:50051", n), grpcOpts...)
+		if err != nil {
+			fmt.Printf("can't connect %s %v", n, err)
+			os.Exit(0)
+		}
+		clients = append(clients, api.NewGobgpApiClient(conn))
+	}
+
+	old := uint64(0)
+	for {
+		n := uint64(0)
+		for i, client := range clients {
+			rsp, err := client.GetTable(context.Background(), &api.GetTableRequest{
+				Family: &api.Family{Afi: api.Family_AFI_IP, Safi: api.Family_SAFI_UNICAST}})
+			if err != nil {
+				fmt.Printf("failed to ListPeer %s %v", neighbors[i], err)
+				os.Exit(0)
+			}
+			n += rsp.GetNumPath()
+		}
+		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " ", n, " paths")
+		if n == old {
+			break
+		}
+		time.Sleep(time.Second * 1)
+		old = n
+	}
+
 	fmt.Println("finished: ", time.Since(start).Seconds(), " seconds")
 }
