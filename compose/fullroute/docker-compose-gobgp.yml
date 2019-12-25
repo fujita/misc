@@ -5,6 +5,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile-server-gobgp
+    image: server-gobgp
     volumes:
       - ./mrt:/var/opt/mrt
 

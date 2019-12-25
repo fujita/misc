@@ -5,6 +5,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile-server-rusty
+    image: server-rusty
     volumes:
       - ./mrt:/var/opt/mrt
 
