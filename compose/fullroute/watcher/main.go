@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	peerOpt  = flag.Int("p", 8, "number of peers")
-	routeOpt = flag.Int64("r", 771684, "number of routes")
+	peerOpt    = flag.Int("p", 8, "number of peers")
+	routeOpt   = flag.Int64("r", 771684, "number of routes")
+	dynamicOpt = flag.Bool("setup-dynamic", false, "set up dynamic peer to accept any")
 )
 
 func main() {
@@ -32,6 +33,34 @@ func main() {
 	}
 
 	client := api.NewGobgpApiClient(conn)
+
+	if *dynamicOpt == true {
+		r, err := client.AddPeerGroup(context.Background(), &api.AddPeerGroupRequest{
+			PeerGroup: &api.PeerGroup{
+				Conf: &api.PeerGroupConf{
+					LocalAs:       0,
+					PeerGroupName: "hoge",
+				},
+			},
+		})
+		if err != nil {
+			fmt.Println("failed to add AddPeerGroup() ", err)
+			os.Exit(1)
+		}
+		fmt.Println(r)
+
+		r, err = client.AddDynamicNeighbor(context.Background(), &api.AddDynamicNeighborRequest{
+			DynamicNeighbor: &api.DynamicNeighbor{
+				Prefix:    "0.0.0.0/0",
+				PeerGroup: "hoge",
+			},
+		})
+		if err != nil {
+			fmt.Println("failed to add AddDynamicNeighbor() ", err)
+			os.Exit(1)
+		}
+		fmt.Println(r)
+	}
 
 	init := false
 	neighbors := []string{}
