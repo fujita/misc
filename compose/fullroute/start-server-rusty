@@ -20,5 +20,5 @@ default-export-policy = "reject-route"
 EOF
 
 sleep 5
-/usr/bin/watcher -p 8 -r 771684 > /var/log/watcher.log&
-/usr/sbin/rustybgpd --as-number 65001 --router-id ${IP} --any-peers
+/usr/bin/watcher --start-bgp -p 8 -r 771684 > /var/log/watcher.log&
+/usr/sbin/rustybgpd --any-peers

@@ -15,6 +15,7 @@ import (
 var (
 	peerOpt  = flag.Int("p", 8, "number of peers")
 	routeOpt = flag.Int64("r", 771684, "number of routes")
+	startBgp = flag.Bool("start-bgp", false, "start bgp")
 )
 
 func main() {
@@ -33,6 +34,19 @@ func main() {
 
 	client := api.NewGobgpApiClient(conn)
 
+	if *startBgp == true {
+		_, err := client.StartBgp(context.Background(),
+			&api.StartBgpRequest{
+				Global: &api.Global{
+					As:       65001,
+					RouterId: "1.1.1.1",
+				},
+			})
+		if err != nil {
+			fmt.Println("failed to start bgp ", err)
+			os.Exit(1)
+		}
+	}
 	init := false
 	neighbors := []string{}
 	var start time.Time
