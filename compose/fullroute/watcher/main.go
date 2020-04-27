@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	peerOpt  = flag.Int("p", 8, "number of peers")
-	routeOpt = flag.Int64("r", 771684, "number of routes")
-	startBgp = flag.Bool("start-bgp", false, "start bgp")
+	peerOpt   = flag.Int("p", 8, "number of peers")
+	routeOpt  = flag.Int64("r", 771684, "number of routes")
+	startBgp  = flag.Bool("start-bgp", false, "start bgp")
+	policyOpt = flag.Bool("add-policy", false, "add policies")
 )
 
 func main() {
@@ -47,6 +48,62 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	if *policyOpt == true {
+		num := 1000
+
+		for i := 0; i < num; i++ {
+			_, err = client.AddDefinedSet(context.Background(), &api.AddDefinedSetRequest{
+				DefinedSet: &api.DefinedSet{
+					DefinedType: api.DefinedType(3),
+					Name:        fmt.Sprintf("d%d", i),
+					List:        []string{fmt.Sprintf("^%d_", i+65000)},
+				},
+			})
+			if err != nil {
+				fmt.Println("failed to add AddDefinedSet() ", err)
+				os.Exit(1)
+			}
+			_, err = client.AddStatement(context.Background(), &api.AddStatementRequest{
+				Statement: &api.Statement{
+					Name: fmt.Sprintf("s%d", i),
+					Conditions: &api.Conditions{
+						AsPathSet: &api.MatchSet{
+							Name: fmt.Sprintf("d%d", i),
+						},
+					},
+				},
+			})
+			if err != nil {
+				fmt.Println("failed to add AddStatement() ", err)
+				os.Exit(1)
+			}
+			_, err = client.AddPolicy(context.Background(), &api.AddPolicyRequest{
+				Policy: &api.Policy{
+					Name: fmt.Sprintf("p%d", i),
+					Statements: []*api.Statement{&api.Statement{
+						Name: fmt.Sprintf("s%d", i),
+					}},
+				},
+			})
+			if err != nil {
+				fmt.Println("failed to add AddPolicy() ", err)
+				os.Exit(1)
+			}
+		}
+		var p []*api.Policy
+		for i := 0; i < num; i++ {
+			p = append(p, &api.Policy{Name: fmt.Sprintf("p%d", i)})
+		}
+		_, err = client.AddPolicyAssignment(context.Background(), &api.AddPolicyAssignmentRequest{
+			Assignment: &api.PolicyAssignment{
+				Name:      "global",
+				Direction: api.PolicyDirection(1),
+				Policies:  p,
+			},
+		})
+	}
+
 	init := false
 	neighbors := []string{}
 	var start time.Time
