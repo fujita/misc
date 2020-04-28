@@ -18,5 +18,5 @@ router-id = "${IP}"
 EOF
 
 sleep 5
-/usr/bin/watcher -p 8 -r 771684 > /var/log/watcher.log&
+/usr/bin/watcher --add-policy -p 8 -r 771684 > /var/log/watcher.log&
 /usr/bin/gobgpd -f /etc/gobgpd.conf
