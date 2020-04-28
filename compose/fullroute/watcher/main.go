@@ -85,6 +85,7 @@ func main() {
 						Name: fmt.Sprintf("s%d", i),
 					}},
 				},
+				ReferExistingStatements: true,
 			})
 			if err != nil {
 				fmt.Println("failed to add AddPolicy() ", err)
