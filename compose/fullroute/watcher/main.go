@@ -105,19 +105,14 @@ func main() {
 		})
 	}
 
-	init := false
-	neighbors := []string{}
 	var start time.Time
+PEER_LABEL:
 	for {
 		stream, err := client.ListPeer(context.Background(), &api.ListPeerRequest{})
 		if err != nil {
 			fmt.Println("failed to ListPeer ", err)
 			os.Exit(0)
 		}
-
-		peers := 0
-		accepted := uint64(0)
-		neighbors = []string{}
 		for {
 			r, err := stream.Recv()
 			if err == io.EOF {
@@ -126,50 +121,69 @@ func main() {
 				fmt.Println("failed to parse the response ", err)
 				os.Exit(0)
 			}
-			if init == false {
-				init = true
-				start = time.Now()
-			}
-			peers++
+			// all are dynamic peers. So when we have one peer, we think that the benchmark started.
+			start = time.Now()
+			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), r.Peer.GetState().GetNeighborAddress(), " connected")
+			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " the benchmark started ", r.Peer.GetState().GetNeighborAddress())
+			break PEER_LABEL
+		}
+		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " waiting for peer")
+		time.Sleep(time.Second)
+	}
 
-			for _, afisafi := range r.Peer.GetAfiSafis() {
-				accepted += afisafi.State.Accepted
-			}
-			neighbors = append(neighbors, r.Peer.GetState().GetNeighborAddress())
+	for paths := uint64(0); ; {
+		rsp, err := client.GetTable(context.Background(), &api.GetTableRequest{
+			Family: &api.Family{Afi: api.Family_AFI_IP, Safi: api.Family_SAFI_UNICAST}})
+		if err != nil {
+			fmt.Printf("failed to GetTable %v", err)
+			os.Exit(0)
 		}
-		if init {
-			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " ", peers, " peers ", accepted, " accepted")
-		}
-		if accepted == nr {
+		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), rsp.GetNumPath(), " paths")
+		if rsp.GetNumPath() == nr {
 			break
 		}
-		time.Sleep(time.Second)
+		if rsp.GetNumPath() < paths {
+			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " the number of paths decreased!")
+		}
+		paths = rsp.GetNumPath()
+		time.Sleep(time.Second * 2)
 	}
 	fmt.Println("receiving finished: ", time.Since(start).Seconds(), " seconds")
 
 	clients := []api.GobgpApiClient{}
-	for _, n := range neighbors {
-		conn, err = grpc.DialContext(context.Background(), fmt.Sprintf("%s:50051", n), grpcOpts...)
-		if err != nil {
-			fmt.Printf("can't connect %s %v", n, err)
-			os.Exit(0)
+	if stream, err := client.ListPeer(context.Background(), &api.ListPeerRequest{}); err != nil {
+		fmt.Println("failed to ListPeer ", err)
+		os.Exit(0)
+	} else {
+		for {
+			r, err := stream.Recv()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				fmt.Println("failed to parse the response ", err)
+				os.Exit(0)
+			}
+			conn, err = grpc.DialContext(context.Background(), fmt.Sprintf("%s:50051", r.Peer.GetState().GetNeighborAddress()), grpcOpts...)
+			if err != nil {
+				fmt.Printf("can't connect %s %v", r.Peer.GetState().GetNeighborAddress(), err)
+				os.Exit(0)
+			}
+			clients = append(clients, api.NewGobgpApiClient(conn))
 		}
-		clients = append(clients, api.NewGobgpApiClient(conn))
 	}
 
-	old := uint64(0)
-	for {
+	for old := uint64(0); ; {
 		n := uint64(0)
-		for i, client := range clients {
+		for _, client := range clients {
 			rsp, err := client.GetTable(context.Background(), &api.GetTableRequest{
 				Family: &api.Family{Afi: api.Family_AFI_IP, Safi: api.Family_SAFI_UNICAST}})
 			if err != nil {
-				fmt.Printf("failed to ListPeer %s %v", neighbors[i], err)
+				fmt.Printf("failed to GetTable %v", err)
 				os.Exit(0)
 			}
 			n += rsp.GetNumPath()
 		}
-		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " ", n, " paths")
+		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), n, " paths")
 		if n == old {
 			break
 		}
