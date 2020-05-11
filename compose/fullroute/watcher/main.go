@@ -123,11 +123,11 @@ PEER_LABEL:
 			}
 			// all are dynamic peers. So when we have one peer, we think that the benchmark started.
 			start = time.Now()
-			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), r.Peer.GetState().GetNeighborAddress(), " connected")
-			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " the benchmark started ", r.Peer.GetState().GetNeighborAddress())
+			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), r.Peer.GetState().GetNeighborAddress(), "connected")
+			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), "the benchmark started")
 			break PEER_LABEL
 		}
-		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " waiting for peer")
+		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), "waiting for peer")
 		time.Sleep(time.Second)
 	}
 
@@ -138,17 +138,17 @@ PEER_LABEL:
 			fmt.Printf("failed to GetTable %v", err)
 			os.Exit(0)
 		}
-		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), rsp.GetNumPath(), " paths")
+		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), rsp.GetNumPath(), "paths", time.Since(start).Seconds(),"secs")
 		if rsp.GetNumPath() == nr {
 			break
 		}
 		if rsp.GetNumPath() < paths {
-			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), " the number of paths decreased!")
+			fmt.Println(time.Now().Format("2006/01/02 15:04:05"), "the number of paths decreased!")
 		}
 		paths = rsp.GetNumPath()
 		time.Sleep(time.Second * 2)
 	}
-	fmt.Println("receiving finished: ", time.Since(start).Seconds(), " seconds")
+	fmt.Println("receiving finished:", time.Since(start).Seconds(), "secs")
 
 	clients := []api.GobgpApiClient{}
 	if stream, err := client.ListPeer(context.Background(), &api.ListPeerRequest{}); err != nil {
@@ -183,7 +183,7 @@ PEER_LABEL:
 			}
 			n += rsp.GetNumPath()
 		}
-		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), n, " paths")
+		fmt.Println(time.Now().Format("2006/01/02 15:04:05"), n, "paths")
 		if n == old {
 			break
 		}
@@ -191,5 +191,5 @@ PEER_LABEL:
 		old = n
 	}
 
-	fmt.Println("finished: ", time.Since(start).Seconds(), " seconds")
+	fmt.Println("finished:", time.Since(start).Seconds(), "secs")
 }
