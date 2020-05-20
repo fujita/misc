@@ -20,6 +20,6 @@ EOF
 /usr/bin/gobgpd -f /etc/gobgpd.conf&
 sleep 5
 /usr/bin/gobgp n ${REMOTE} disable
-/usr/bin/gobgp mrt inject global --only-best /var/opt/mrt/rib.20190830.0800
+/usr/bin/gobgp mrt inject global --no-ipv6 --nexthop ${IP} --only-best /var/opt/mrt/rib.20190830.0800
 /usr/bin/gobgp n ${REMOTE} enable
 /usr/bin/gobgp monitor neighbor
