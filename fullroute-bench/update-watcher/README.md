@@ -24,6 +24,8 @@ The way for query is parsing the output of command line tools for Frr and Bird, 
 
 ## Typical benchmark setup
 
+![](https://github.com/fujita/misc/raw/master/.github/assets/update-watcher.png)
+
 I use multiple EC2 instances; one for this update-watcher and the BGP daemon to be benchmarked, others for BGP peers with full routes.
 
 ### Peer instances
