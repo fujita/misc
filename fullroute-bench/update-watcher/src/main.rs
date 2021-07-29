@@ -222,21 +222,30 @@ fn is_stabilized(history: &Vec<Counter>) -> bool {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = App::new("update-watcher")
-        .arg(Arg::with_name("frr").long("frr").help("use frr"))
-        .arg(Arg::with_name("bird").long("bird").help("use bird"))
+        .arg(
+            Arg::with_name("target")
+                .long("target")
+                .takes_value(true)
+                .help("Sets target (ffr|bird)"),
+        )
         .get_matches();
 
-    let mut target = if args.is_present("frr") {
-        Target {
-            gobgp: None,
-            frr: Some(Frr::new()),
-            bird: None,
-        }
-    } else if args.is_present("bird") {
-        Target {
-            gobgp: None,
-            frr: None,
-            bird: Some(Bird::new()),
+    let mut target = if let Some(t) = args.value_of("target") {
+        match t {
+            "ffr" => Target {
+                gobgp: None,
+                frr: Some(Frr::new()),
+                bird: None,
+            },
+            "bird" => Target {
+                gobgp: None,
+                frr: None,
+                bird: Some(Bird::new()),
+            },
+            _ => {
+                println!("supported target: bird or ffr");
+                return Ok(());
+            }
         }
     } else {
         let client = api::gobgp_api_client::GobgpApiClient::connect("http://0.0.0.0:50051")

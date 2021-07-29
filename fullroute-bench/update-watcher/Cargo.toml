@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 regex = "1"
-clap = "2.33"
+clap = "2.33.3"
 tonic = "0.4"
 bytes = "1.0"
 prost = "0.7"
