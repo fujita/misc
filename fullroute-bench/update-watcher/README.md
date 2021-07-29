@@ -18,7 +18,7 @@ elasped: 8.019855141s, peers: 4, stabilized: true
 elasped: 9.022806913s, peers: 4, stabilized: true
 ```
 
-Firstly, the tool deletes the iptables rule to drop BGP packets. Then it queries the BGP daemon running locally every second about the number of messages to be sent and received. If the three consecutive results are same, the `stabilized` message becomes true.
+Firstly, the tool deletes the iptables rule to drop BGP packets. Then it queries the BGP daemon running locally every second about the number of update messages to be sent and received. If the three consecutive results are same, the `stabilized` message becomes true.
 
 The way for query is parsing the output of command line tools for Frr and Bird, the GRPC APIs for GoBGP and RustyBGP.
 
