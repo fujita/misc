@@ -147,9 +147,7 @@ impl Bird {
             inner: HashMap::new(),
         };
         let output = Command::new("birdc")
-            .arg("show")
-            .arg("protocols")
-            .arg("all")
+            .args(&["show", "protocols", "all"])
             .output()
             .expect("failed to execute birdc command");
         let lines = str::from_utf8(&output.stdout).unwrap().lines();
@@ -161,13 +159,16 @@ impl Bird {
             } else if let Some(caps) = self.re2.captures(s) {
                 rx = caps.get(1).unwrap().as_str().parse::<u64>().unwrap();
             } else if let Some(caps) = self.re3.captures(s) {
-                m.inner.insert(
-                    addr.take().unwrap(),
-                    PeerCounter {
-                        tx: caps.get(1).unwrap().as_str().parse::<u64>().unwrap(),
-                        rx,
-                    },
-                );
+                let peer_addr = addr.take().unwrap();
+                if rx != 0 {
+                    m.inner.insert(
+                        peer_addr,
+                        PeerCounter {
+                            tx: caps.get(1).unwrap().as_str().parse::<u64>().unwrap(),
+                            rx,
+                        },
+                    );
+                }
                 rx = 0;
             }
         }
@@ -230,15 +231,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // before run this code, needs to block bgp packet
     // iptables -A INPUT -p tcp --dport 179 -j DROP
     let output = Command::new("sudo")
-        .arg("iptables")
-        .arg("-D")
-        .arg("INPUT")
-        .arg("-p")
-        .arg("tcp")
-        .arg("--dport")
-        .arg("179")
-        .arg("-j")
-        .arg("DROP")
+        .args(&[
+            "iptables", "-D", "INPUT", "-p", "tcp", "--dport", "179", "-j", "DROP",
+        ])
         .output()
         .expect("failed to execute process");
     if !output.status.success() {
