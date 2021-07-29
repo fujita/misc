@@ -127,15 +127,66 @@ impl Frr {
     }
 }
 
+struct Bird {
+    re1: Regex,
+    re2: Regex,
+    re3: Regex,
+}
+
+impl Bird {
+    fn new() -> Self {
+        Bird {
+            re1: Regex::new(r"Neighbor address:\D+([\d\.]+)").unwrap(),
+            re2: Regex::new(r"Import updates:\D+([\d\.]+)").unwrap(),
+            re3: Regex::new(r"Export updates:\D+([\d\.]+)").unwrap(),
+        }
+    }
+
+    fn get_counter(&self) -> Counter {
+        let mut m = Counter {
+            inner: HashMap::new(),
+        };
+        let output = Command::new("birdc")
+            .arg("show")
+            .arg("protocols")
+            .arg("all")
+            .output()
+            .expect("failed to execute birdc command");
+        let lines = str::from_utf8(&output.stdout).unwrap().lines();
+        let mut addr: Option<Ipv4Addr> = None;
+        let mut rx = 0;
+        for s in lines {
+            if let Some(caps) = self.re1.captures(s) {
+                addr = Some(Ipv4Addr::from_str(caps.get(1).unwrap().as_str()).unwrap());
+            } else if let Some(caps) = self.re2.captures(s) {
+                rx = caps.get(1).unwrap().as_str().parse::<u64>().unwrap();
+            } else if let Some(caps) = self.re3.captures(s) {
+                m.inner.insert(
+                    addr.take().unwrap(),
+                    PeerCounter {
+                        tx: caps.get(1).unwrap().as_str().parse::<u64>().unwrap(),
+                        rx,
+                    },
+                );
+                rx = 0;
+            }
+        }
+        m
+    }
+}
+
 struct Target {
-    frr: Option<Frr>,
     gobgp: Option<GoBgp>,
+    frr: Option<Frr>,
+    bird: Option<Bird>,
 }
 
 impl Target {
     async fn get_counter(&mut self) -> Counter {
         if let Some(frr) = self.frr.as_ref() {
             return frr.get_counter();
+        } else if let Some(bird) = self.bird.as_mut() {
+            return bird.get_counter();
         } else if let Some(gobgp) = self.gobgp.as_mut() {
             return gobgp.get_counter().await;
         }
@@ -147,21 +198,29 @@ impl Target {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = App::new("update-watcher")
         .arg(Arg::with_name("frr").long("frr").help("use frr"))
+        .arg(Arg::with_name("bird").long("bird").help("use bird"))
         .get_matches();
 
     let mut target = if args.is_present("frr") {
         Target {
-            frr: Some(Frr::new()),
             gobgp: None,
+            frr: Some(Frr::new()),
+            bird: None,
+        }
+    } else if args.is_present("bird") {
+        Target {
+            gobgp: None,
+            frr: None,
+            bird: Some(Bird::new()),
         }
     } else {
         let client = api::gobgp_api_client::GobgpApiClient::connect("http://0.0.0.0:50051")
             .await
             .unwrap();
-
         Target {
-            frr: None,
             gobgp: Some(GoBgp { client }),
+            frr: None,
+            bird: None,
         }
     };
 
