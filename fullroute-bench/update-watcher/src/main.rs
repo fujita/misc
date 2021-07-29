@@ -279,7 +279,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         println!(
-            "elasped: {:?}, peers: {}, finished: {}",
+            "elasped: {:?}, peers: {}, stabilized: {}",
             start_time.elapsed(),
             num_peers,
             finished,
