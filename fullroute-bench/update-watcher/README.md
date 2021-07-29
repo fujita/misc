@@ -30,7 +30,7 @@ I use multiple EC2 instances; one for this update-watcher and the BGP daemon to 
 
 ### Peer instances
 
-I run multiple GoBGP daemons on one EC2 instance. Each GoBGP daemon has the full routes. The trick is running an EC2 instance with multiple IP addresses and assigning an IP address and one GoBGP daemon (use `local-address` option in config file). You also need assign unique gRPC listen port to each GoBGP daemon (use `api-hosts` command line option).
+I run multiple GoBGP daemons on one EC2 instance. Each GoBGP daemon has the full routes. The trick is running an EC2 instance with multiple IP addresses and assigning an IP address and one GoBGP daemon (use `local-address` option in config file). You also need assign unique gRPC listen port to each GoBGP daemon (use `api-hosts` command line option). There are some other stuff to be configured. Check out [an example script](https://github.com/fujita/misc/tree/master/fullroute-bench/config/cdk-peer.sh) that I use with [AWS CDK](https://aws.amazon.com/jp/cdk/).
 
 I use [the slightly modified version of GoBGP](https://github.com/fujita/gobgp/releases/download/injector/gobgp_SNAPSHOT-a0615824_linux_arm64.tar.gz) for peers. It simply drops all routes to be received (which the target BGP daemon advertises). It hugely saves memory and CPU usage.
 
