@@ -195,6 +195,30 @@ impl Target {
     }
 }
 
+// Needs to block bgp packet before staring this program
+// # iptables -A INPUT -p tcp --dport 179 -j DROP
+fn start_bgp() {
+    let output = Command::new("sudo")
+        .args(&[
+            "iptables", "-D", "INPUT", "-p", "tcp", "--dport", "179", "-j", "DROP",
+        ])
+        .output()
+        .expect("failed to execute process");
+    if !output.status.success() {
+        std::io::stderr().write_all(&output.stderr).unwrap();
+        std::process::exit(1);
+    }
+}
+
+fn is_stabilized(history: &Vec<Counter>) -> bool {
+    for i in 1..history.len() {
+        if history[0] != history[i] {
+            return false;
+        }
+    }
+    true
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = App::new("update-watcher")
@@ -228,42 +252,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stats = Vec::new();
     let num_stats = 3;
 
-    // before run this code, needs to block bgp packet
-    // iptables -A INPUT -p tcp --dport 179 -j DROP
-    let output = Command::new("sudo")
-        .args(&[
-            "iptables", "-D", "INPUT", "-p", "tcp", "--dport", "179", "-j", "DROP",
-        ])
-        .output()
-        .expect("failed to execute process");
-    if !output.status.success() {
-        std::io::stderr().write_all(&output.stderr).unwrap();
-        std::process::exit(1);
-    }
-
+    start_bgp();
     let start_time = tokio::time::Instant::now();
     loop {
         let m = target.get_counter().await;
-        println!("peer numbers: {:?}", m.inner.len());
+        let num_peers = m.inner.len();
+
         stats.insert(0, m);
         while stats.len() > num_stats {
             stats.pop();
         }
 
-        let mut finished = true;
-        if stats.len() == num_stats {
-            for i in 1..stats.len() {
-                if stats[0] != stats[i] {
-                    finished = false;
-                }
-            }
+        let finished = if stats.len() == num_stats && num_peers > 0 {
+            is_stabilized(&stats)
         } else {
-            finished = false;
-        }
+            false
+        };
+
         println!(
-            "elasped: {:?}, finished: {}",
+            "elasped: {:?}, peers: {}, finished: {}",
             start_time.elapsed(),
-            finished
+            num_peers,
+            finished,
         );
 
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
