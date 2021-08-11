@@ -176,11 +176,11 @@ impl Bird {
     }
 }
 
-struct OpenBgp {}
+struct OpenBgpd {}
 
-impl OpenBgp {
+impl OpenBgpd {
     fn new() -> Self {
-        OpenBgp {}
+        OpenBgpd {}
     }
 
     fn get_counter(&self) -> Counter {
@@ -219,7 +219,7 @@ struct Target {
     gobgp: Option<GoBgp>,
     frr: Option<Frr>,
     bird: Option<Bird>,
-    openbgp: Option<OpenBgp>,
+    openbgpd: Option<OpenBgpd>,
 }
 
 impl Target {
@@ -228,8 +228,8 @@ impl Target {
             return frr.get_counter();
         } else if let Some(bird) = self.bird.as_mut() {
             return bird.get_counter();
-        } else if let Some(openbgp) = self.openbgp.as_mut() {
-            return openbgp.get_counter();
+        } else if let Some(openbgpd) = self.openbgpd.as_mut() {
+            return openbgpd.get_counter();
         } else if let Some(gobgp) = self.gobgp.as_mut() {
             return gobgp.get_counter().await;
         }
@@ -278,19 +278,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 gobgp: None,
                 frr: Some(Frr::new()),
                 bird: None,
-                openbgp: None,
+                openbgpd: None,
             },
             "bird" => Target {
                 gobgp: None,
                 frr: None,
                 bird: Some(Bird::new()),
-                openbgp: None,
+                openbgpd: None,
             },
             "openbgp" => Target {
                 gobgp: None,
                 frr: None,
                 bird: None,
-                openbgp: Some(OpenBgp::new()),
+                openbgpd: Some(OpenBgpd::new()),
             },
             _ => {
                 println!("supported target: bird or ffr or openbgp");
@@ -305,7 +305,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             gobgp: Some(GoBgp { client }),
             frr: None,
             bird: None,
-            openbgp: None,
+            openbgpd: None,
         }
     };
 
