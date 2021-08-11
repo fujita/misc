@@ -268,7 +268,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("target")
                 .long("target")
                 .takes_value(true)
-                .help("Sets target (ffr|bird|openbgp)"),
+                .help("Sets target (ffr|bird|openbgpd)"),
         )
         .get_matches();
 
@@ -286,14 +286,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 bird: Some(Bird::new()),
                 openbgpd: None,
             },
-            "openbgp" => Target {
+            "openbgpd" => Target {
                 gobgp: None,
                 frr: None,
                 bird: None,
                 openbgpd: Some(OpenBgpd::new()),
             },
             _ => {
-                println!("supported target: bird or ffr or openbgp");
+                println!("supported target: bird or ffr or openbgpd");
                 return Ok(());
             }
         }
