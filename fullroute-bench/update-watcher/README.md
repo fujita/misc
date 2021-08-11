@@ -1,6 +1,6 @@
 # bgp update watcher
 
-This is monitoring tool on BGP daemon of sending and receiving update messages. Supported BGP software are [GoBGP](https://github.com/osrg/gobgp), [RustyBGP](https://github.com/osrg/rustybgp), [Frr](https://github.com/FRRouting/frr), and [Bird](https://gitlab.nic.cz/labs/bird). I use this tool for benchmarking RustyBGP. Please feel free to create a pull request for new features (such as adding other BGP software support).
+This is monitoring tool on BGP daemon of sending and receiving update messages. Supported BGP software are [GoBGP](https://github.com/osrg/gobgp), [RustyBGP](https://github.com/osrg/rustybgp), [Frr](https://github.com/FRRouting/frr), [Bird](https://gitlab.nic.cz/labs/bird), and [OpenBGPD](http://www.openbgpd.org). I use this tool for benchmarking RustyBGP. Please feel free to create a pull request for new features (such as adding other BGP software support).
 
 ## How works
 
