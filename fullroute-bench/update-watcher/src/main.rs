@@ -176,10 +176,50 @@ impl Bird {
     }
 }
 
+struct OpenBgp {}
+
+impl OpenBgp {
+    fn new() -> Self {
+        OpenBgp {}
+    }
+
+    fn get_counter(&self) -> Counter {
+        let mut m = Counter {
+            inner: HashMap::new(),
+        };
+        let output = Command::new("bgpctl")
+            .args(&["-j", "show", "neighbor"])
+            .output()
+            .expect("failed to execute process");
+
+        let j: serde_json::Value =
+            serde_json::from_str(str::from_utf8(&output.stdout).unwrap()).unwrap();
+
+        for n in j["neighbors"].as_array().unwrap() {
+            let addr = n["remote_addr"].as_str().unwrap();
+            // skip "172.0.0.0/8" configuration
+            if addr.to_string().contains("/") {
+                continue;
+            }
+
+            let tx = n["stats"]["message"]["sent"]["updates"].as_i64().unwrap() as u64;
+            let rx = n["stats"]["message"]["received"]["updates"]
+                .as_i64()
+                .unwrap() as u64;
+
+            m.inner
+                .insert(Ipv4Addr::from_str(addr).unwrap(), PeerCounter { tx, rx });
+        }
+
+        m
+    }
+}
+
 struct Target {
     gobgp: Option<GoBgp>,
     frr: Option<Frr>,
     bird: Option<Bird>,
+    openbgp: Option<OpenBgp>,
 }
 
 impl Target {
@@ -188,6 +228,8 @@ impl Target {
             return frr.get_counter();
         } else if let Some(bird) = self.bird.as_mut() {
             return bird.get_counter();
+        } else if let Some(openbgp) = self.openbgp.as_mut() {
+            return openbgp.get_counter();
         } else if let Some(gobgp) = self.gobgp.as_mut() {
             return gobgp.get_counter().await;
         }
@@ -226,7 +268,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("target")
                 .long("target")
                 .takes_value(true)
-                .help("Sets target (ffr|bird)"),
+                .help("Sets target (ffr|bird|openbgp)"),
         )
         .get_matches();
 
@@ -236,14 +278,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 gobgp: None,
                 frr: Some(Frr::new()),
                 bird: None,
+                openbgp: None,
             },
             "bird" => Target {
                 gobgp: None,
                 frr: None,
                 bird: Some(Bird::new()),
+                openbgp: None,
+            },
+            "openbgp" => Target {
+                gobgp: None,
+                frr: None,
+                bird: None,
+                openbgp: Some(OpenBgp::new()),
             },
             _ => {
-                println!("supported target: bird or ffr");
+                println!("supported target: bird or ffr or openbgp");
                 return Ok(());
             }
         }
@@ -255,6 +305,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             gobgp: Some(GoBgp { client }),
             frr: None,
             bird: None,
+            openbgp: None,
         }
     };
 
