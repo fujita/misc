@@ -44,10 +44,6 @@ $ sudo iptables -A INPUT -p tcp --dport 179 -j DROP
 
 `update-watcher` automatically removes the rule when it starts.
 
-Needs to set up the targeted BGP daemon that must accept any peers. The config file examples for Frr, Bird, and OpenBGPD can be found [here](https://github.com/fujita/misc/tree/master/fullroute-bench/config). It's easier in case of RustyBGP:
-
-```bash
-$ sudo rustybgpd --any-peers --as-number 65001 --router-id 1.1.1.1
-```
+Needs to set up the targeted BGP daemon that must accept any peers. The config file examples for GoBGP, RustyBGP, Frr, Bird, and OpenBGPD can be found [here](https://github.com/fujita/misc/tree/master/fullroute-bench/config).
 
 Now ready to run `update-watcher`.
