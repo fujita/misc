@@ -1,4 +1,5 @@
 use clap::{App, Arg};
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use std::io::Write;
@@ -43,37 +44,58 @@ struct PeerCounter {
     rx: u64,
 }
 
+static RT: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+});
+
 struct GoBgp {
     client: api::gobgp_api_client::GobgpApiClient<tonic::transport::Channel>,
 }
 
 impl GoBgp {
-    async fn get_counter(&mut self) -> Counter {
+    fn new() -> Self {
+        let client = RT.block_on(async {
+            api::gobgp_api_client::GobgpApiClient::connect("http://0.0.0.0:50051")
+                .await
+                .unwrap()
+        });
+        GoBgp { client }
+    }
+}
+
+impl Target for GoBgp {
+    fn get_counter(&mut self) -> Counter {
         let mut m = Counter {
             inner: HashMap::new(),
         };
-        let mut rsp = self
-            .client
-            .list_peer(api::ListPeerRequest {
-                address: "".to_string(),
-                enable_advertised: false,
-            })
-            .await
-            .unwrap()
-            .into_inner();
+        RT.block_on(async {
+            let mut rsp = self
+                .client
+                .list_peer(api::ListPeerRequest {
+                    address: "".to_string(),
+                    enable_advertised: false,
+                })
+                .await
+                .unwrap()
+                .into_inner();
 
-        while let Some(mut peer) = rsp.message().await.unwrap() {
-            let mut peer = peer.peer.take().unwrap();
-            let mut state = peer.state.take().unwrap();
-            let messages = state.messages.take().unwrap();
-            m.inner.insert(
-                Ipv4Addr::from_str(&state.neighbor_address).unwrap(),
-                PeerCounter {
-                    tx: messages.sent.unwrap().update,
-                    rx: messages.received.unwrap().update,
-                },
-            );
-        }
+            while let Some(mut peer) = rsp.message().await.unwrap() {
+                let mut peer = peer.peer.take().unwrap();
+                let mut state = peer.state.take().unwrap();
+                let messages = state.messages.take().unwrap();
+                m.inner.insert(
+                    Ipv4Addr::from_str(&state.neighbor_address).unwrap(),
+                    PeerCounter {
+                        tx: messages.sent.unwrap().update,
+                        rx: messages.received.unwrap().update,
+                    },
+                );
+            }
+        });
+
         m
     }
 }
@@ -90,8 +112,10 @@ impl Frr {
             re2: Regex::new(r"Updates:\D+(\d+)\D+(\d+)").unwrap(),
         }
     }
+}
 
-    fn get_counter(&self) -> Counter {
+impl Target for Frr {
+    fn get_counter(&mut self) -> Counter {
         let mut m = Counter {
             inner: HashMap::new(),
         };
@@ -141,8 +165,10 @@ impl Bird {
             re3: Regex::new(r"Export updates:\D+([\d\.]+)").unwrap(),
         }
     }
+}
 
-    fn get_counter(&self) -> Counter {
+impl Target for Bird {
+    fn get_counter(&mut self) -> Counter {
         let mut m = Counter {
             inner: HashMap::new(),
         };
@@ -182,8 +208,10 @@ impl OpenBgpd {
     fn new() -> Self {
         OpenBgpd {}
     }
+}
 
-    fn get_counter(&self) -> Counter {
+impl Target for OpenBgpd {
+    fn get_counter(&mut self) -> Counter {
         let mut m = Counter {
             inner: HashMap::new(),
         };
@@ -215,26 +243,8 @@ impl OpenBgpd {
     }
 }
 
-struct Target {
-    gobgp: Option<GoBgp>,
-    frr: Option<Frr>,
-    bird: Option<Bird>,
-    openbgpd: Option<OpenBgpd>,
-}
-
-impl Target {
-    async fn get_counter(&mut self) -> Counter {
-        if let Some(frr) = self.frr.as_ref() {
-            return frr.get_counter();
-        } else if let Some(bird) = self.bird.as_mut() {
-            return bird.get_counter();
-        } else if let Some(openbgpd) = self.openbgpd.as_mut() {
-            return openbgpd.get_counter();
-        } else if let Some(gobgp) = self.gobgp.as_mut() {
-            return gobgp.get_counter().await;
-        }
-        panic!("");
-    }
+trait Target {
+    fn get_counter(&mut self) -> Counter;
 }
 
 // Needs to block bgp packet before staring this program
@@ -261,8 +271,7 @@ fn is_stabilized(history: &Vec<Counter>) -> bool {
     true
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let args = App::new("update-watcher")
         .arg(
             Arg::with_name("target")
@@ -272,41 +281,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .get_matches();
 
-    let mut target = if let Some(t) = args.value_of("target") {
+    let mut target: Box<dyn Target> = if let Some(t) = args.value_of("target") {
         match t {
-            "frr" => Target {
-                gobgp: None,
-                frr: Some(Frr::new()),
-                bird: None,
-                openbgpd: None,
-            },
-            "bird" => Target {
-                gobgp: None,
-                frr: None,
-                bird: Some(Bird::new()),
-                openbgpd: None,
-            },
-            "openbgpd" => Target {
-                gobgp: None,
-                frr: None,
-                bird: None,
-                openbgpd: Some(OpenBgpd::new()),
-            },
+            "frr" => Box::new(Frr::new()),
+            "bird" => Box::new(Bird::new()),
+            "openbgpd" => Box::new(OpenBgpd::new()),
             _ => {
                 println!("supported target: bird, frr, or openbgpd");
-                return Ok(());
+                return;
             }
         }
     } else {
-        let client = api::gobgp_api_client::GobgpApiClient::connect("http://0.0.0.0:50051")
-            .await
-            .unwrap();
-        Target {
-            gobgp: Some(GoBgp { client }),
-            frr: None,
-            bird: None,
-            openbgpd: None,
-        }
+        Box::new(GoBgp::new())
     };
 
     let mut stats = Vec::new();
@@ -315,7 +301,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     start_bgp();
     let start_time = tokio::time::Instant::now();
     loop {
-        let m = target.get_counter().await;
+        let m = target.get_counter();
         let num_peers = m.inner.len();
 
         stats.insert(0, m);
@@ -336,6 +322,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             finished,
         );
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        RT.block_on(async {
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        });
     }
 }
