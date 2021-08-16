@@ -25,6 +25,10 @@ impl PartialEq for Counter {
         for k in other.inner.keys() {
             match self.inner.get(k) {
                 Some(s) => {
+                    // rx or tx hasn't started yet
+                    if s.tx == 0 || s.rx == 0 {
+                        return false;
+                    }
                     if s.tx != other.inner.get(k).unwrap().tx
                         || s.rx != other.inner.get(k).unwrap().rx
                     {
