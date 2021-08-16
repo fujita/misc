@@ -230,7 +230,7 @@ impl Target for OpenBgpd {
         for n in j["neighbors"].as_array().unwrap() {
             let addr = n["remote_addr"].as_str().unwrap();
             // skip "172.0.0.0/8" configuration
-            if addr.to_string().contains("/") {
+            if addr.to_string().contains('/') {
                 continue;
             }
 
@@ -266,7 +266,7 @@ fn start_bgp() {
     }
 }
 
-fn is_stabilized(history: &Vec<Counter>) -> bool {
+fn is_stabilized(history: &[Counter]) -> bool {
     for i in 1..history.len() {
         if history[0] != history[i] {
             return false;
