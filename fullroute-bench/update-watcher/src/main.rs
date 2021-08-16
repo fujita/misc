@@ -48,6 +48,20 @@ struct PeerCounter {
     rx: u64,
 }
 
+fn get_pids(name: &str) -> Vec<i32> {
+    let mut pids = Vec::new();
+    for p in procfs::process::all_processes().unwrap() {
+        let p = p.status().unwrap();
+        if p.name.contains(name) {
+            pids.push(p.pid);
+        }
+    }
+    if pids.is_empty() {
+        panic!("can't find {} process", name);
+    }
+    pids
+}
+
 static RT: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -57,6 +71,7 @@ static RT: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
 
 struct GoBgp {
     client: api::gobgp_api_client::GobgpApiClient<tonic::transport::Channel>,
+    pids: Vec<i32>,
 }
 
 impl GoBgp {
@@ -66,7 +81,10 @@ impl GoBgp {
                 .await
                 .unwrap()
         });
-        GoBgp { client }
+        GoBgp {
+            client,
+            pids: get_pids("rustybgpd"),
+        }
     }
 }
 
@@ -99,14 +117,18 @@ impl Target for GoBgp {
                 );
             }
         });
-
         m
+    }
+
+    fn processes(&self) -> Vec<i32> {
+        self.pids.clone()
     }
 }
 
 struct Frr {
     re1: Regex,
     re2: Regex,
+    pids: Vec<i32>,
 }
 
 impl Frr {
@@ -114,6 +136,7 @@ impl Frr {
         Frr {
             re1: Regex::new(r"^BGP neighbor\D+([\d\.]+)").unwrap(),
             re2: Regex::new(r"Updates:\D+(\d+)\D+(\d+)").unwrap(),
+            pids: get_pids("bgpd"),
         }
     }
 }
@@ -153,12 +176,17 @@ impl Target for Frr {
         }
         m
     }
+
+    fn processes(&self) -> Vec<i32> {
+        self.pids.clone()
+    }
 }
 
 struct Bird {
     re1: Regex,
     re2: Regex,
     re3: Regex,
+    pids: Vec<i32>,
 }
 
 impl Bird {
@@ -167,6 +195,7 @@ impl Bird {
             re1: Regex::new(r"Neighbor address:\D+([\d\.]+)").unwrap(),
             re2: Regex::new(r"Import updates:\D+([\d\.]+)").unwrap(),
             re3: Regex::new(r"Export updates:\D+([\d\.]+)").unwrap(),
+            pids: get_pids("bird"),
         }
     }
 }
@@ -204,13 +233,21 @@ impl Target for Bird {
         }
         m
     }
+
+    fn processes(&self) -> Vec<i32> {
+        self.pids.clone()
+    }
 }
 
-struct OpenBgpd {}
+struct OpenBgpd {
+    pids: Vec<i32>,
+}
 
 impl OpenBgpd {
     fn new() -> Self {
-        OpenBgpd {}
+        OpenBgpd {
+            pids: get_pids("bgpd"),
+        }
     }
 }
 
@@ -245,10 +282,15 @@ impl Target for OpenBgpd {
 
         m
     }
+
+    fn processes(&self) -> Vec<i32> {
+        self.pids.clone()
+    }
 }
 
 trait Target {
     fn get_counter(&mut self) -> Counter;
+    fn processes(&self) -> Vec<i32>;
 }
 
 // Needs to block bgp packet before staring this program
@@ -304,6 +346,9 @@ fn main() {
 
     start_bgp();
     let start_time = tokio::time::Instant::now();
+    let mut i = 0;
+    let mut max_rss = 0;
+    let mut rss = 0;
     loop {
         let m = target.get_counter();
         let num_peers = m.inner.len();
@@ -319,10 +364,27 @@ fn main() {
             false
         };
 
+        // avoid parsing /proc everytime
+        if (i % 3) == 0 {
+            rss = 0;
+            for pid in target.processes() {
+                rss += procfs::process::Process::new(pid)
+                    .unwrap()
+                    .stat()
+                    .unwrap()
+                    .rss_bytes();
+            }
+        }
+        i += 1;
+        if max_rss < rss {
+            max_rss = rss;
+        }
+
         println!(
-            "elasped: {:?}, peers: {}, stabilized: {}",
+            "elasped: {:?}, peers: {}, max rss (KB): {}, stabilized: {}",
             start_time.elapsed(),
             num_peers,
+            max_rss / 1024,
             finished,
         );
 
