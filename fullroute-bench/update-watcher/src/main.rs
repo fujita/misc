@@ -9,9 +9,9 @@ use std::str;
 use std::str::FromStr;
 
 mod api {
-    tonic::include_proto!("gobgpapi");
+    #![allow(clippy::all)]
+    tonic::include_proto!("apipb");
 }
-
 #[derive(Debug)]
 struct Counter {
     inner: HashMap<Ipv4Addr, PeerCounter>,
@@ -76,13 +76,13 @@ struct GoBgp {
 
 impl GoBgp {
     fn new() -> Self {
-        let client = RT.block_on(async {
+        let mut client = RT.block_on(async {
             api::gobgp_api_client::GobgpApiClient::connect("http://0.0.0.0:50051")
                 .await
-                .unwrap()
         });
+        // println!("{:?}", client);
         GoBgp {
-            client,
+            client: client.unwrap(),
             pids: get_pids("rustybgpd"),
         }
     }
@@ -94,15 +94,18 @@ impl Target for GoBgp {
             inner: HashMap::new(),
         };
         RT.block_on(async {
-            let mut rsp = self
+            let mut r = self
                 .client
                 .list_peer(api::ListPeerRequest {
                     address: "".to_string(),
                     enable_advertised: false,
                 })
-                .await
-                .unwrap()
-                .into_inner();
+                .await;
+
+            // println!("{:?}", r);
+            //    .unwrap()
+            //    .into_inner();
+            let mut rsp = r.unwrap().into_inner();
 
             while let Some(mut peer) = rsp.message().await.unwrap() {
                 let mut peer = peer.peer.take().unwrap();
